@@ -1,6 +1,6 @@
 # Elixir Linux MCP Server
 
-该项目是适配于Elixir查看Linux代码的MCP服务器
+该项目是适配于Elixir查看Linux代码的MCP服务器，能够让LLM更精准地读代码
 
 # 依赖条件
 
