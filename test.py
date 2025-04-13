@@ -27,25 +27,46 @@ from query import get_query
 REPO_DIR="/home/ziyang/works/kernel/linux"
 import git 
 repo = git.Repo(REPO_DIR)
+import os
 
 # 检出特定版本
 # repo.git.checkout("v4.10")
-try:
-    cres = repo.git.checkout("v4.22")
-    print(f"cres = {cres}")
+# try:
+#     cres = repo.git.checkout("v4.22")
+#     print(f"cres = {cres}")
 
-    # 获取当前commit的log信息
-    commit = repo.head.commit
-    print(f"Commit Hash: {commit.hexsha}")
-    print(f"Author: {commit.author.name} <{commit.author.email}>")
-    print(f"Date: {commit.authored_datetime}")
-    print(f"Message:\n{commit.message}")
+#     # 获取当前commit的log信息
+#     commit = repo.head.commit
+#     print(f"Commit Hash: {commit.hexsha}")
+#     print(f"Author: {commit.author.name} <{commit.author.email}>")
+#     print(f"Date: {commit.authored_datetime}")
+#     print(f"Message:\n{commit.message}")
 
-    # 获取该commit的父commit信息
-    for parent in commit.parents:
-        print(f"\nParent Commit: {parent.hexsha}")
+#     # 获取该commit的父commit信息
+#     for parent in commit.parents:
+#         print(f"\nParent Commit: {parent.hexsha}")
 
-except Exception as e:
-    print(e)
+# except Exception as e:
+#     print(e)
+
+def print_tree(path, prefix='') -> str:
+    """打印目录树结构"""
+    result = ""
+    files = os.listdir(path)
+    for i, file in enumerate(files):
+        # 判断是否是最后一个文件/目录
+        is_last = i == len(files) - 1
+        # 当前层级的前缀
+        result = prefix + ('└── ' if is_last else '├── ') + file
+        full_path = os.path.join(path, file)
+        if os.path.isdir(full_path):
+            # 递归打印子目录，更新前缀
+            result += f"\n{print_tree(full_path, prefix + ('    ' if is_last else '│   '))}"
+        
+    return result 
+
+print(".")
+print(print_tree(REPO_DIR))
+
 
 
