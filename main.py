@@ -270,7 +270,51 @@ async def list_dir(version: str, path: str, detail = False, recursive=False) -> 
         return build_fail_resp(message=f"展示目录{path}内容失败,失败原因:{e}")
 
 @mcp.tool()
-async def get_file():
+async def get_file_meta_info(version: str, path: str):
+    """获取Linux内核源码中指定文件的元数据
+    
+    Args:
+        version (str) : 要查看的Linux内核版本,可以是一个具体的版本号,如v4.10,也可以是一个commit的hash id
+        path (str) : 要查看的Linux内核源码中某个文件的路径,这个路径是相对于内核源码根目录的路径,例如 /drivers/gpu/drm/amd/amdgpu/aldebaran_reg_init.c
+
+    Returns:
+        返回该文件的元数据，包含以下信息:
+            name : 文件的名称
+            type : 文件的类型
+                    directory -> 目录
+                    file -> 文件
+            path : 文件的绝对路径
+            size : 文件的大小(bytes)
+            create : 文件的创建时间
+            last_monify_time : 文件最近一次修改时间
+            last_access_time : 文件最近一次被访问时间
+    """
+    try:
+        repo.git.checkout(version)
+        abs_path = Path(f"{REPO_DIR}/{path}")
+        if not abs_path.exists():
+            raise RuntimeError(f"文件{abs_path}不存在")
+
+        if not abs_path.is_file():
+            raise RuntimeError(f"{abs_path}不是一个文件")
+        
+        info = {
+            'name': abs_path.name,
+            'type': 'file',
+            'path': str(abs_path.resolve()),
+            'size': abs_path.stat().st_size,
+            "create_time": time.ctime(abs_path.stat().st_ctime),
+            "last_monify_time": time.ctime(abs_path.stat().st_mtime),
+            "last_access_time": time.ctime(abs_path.stat().st_atime),
+        }
+
+        return build_success_resp(data=info, message=f"获取文件{path}元信息成功")
+
+    except Exception as e:
+        return build_fail_resp(message=f"获取文件{path}元信息失败,失败原因:{e}")
+
+@mcp.tool()
+async def get_file_content():
     pass 
 
 
