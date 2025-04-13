@@ -9,7 +9,7 @@ class DateTimeEncoder(json.JSONEncoder):
 
 def build_raw_resp(data=None, message="", status="unKnown") -> str:
     resp = {
-        "data": data,
+        "result": data,
         "message": message,
         "status": status
     }

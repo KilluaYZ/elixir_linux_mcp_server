@@ -114,6 +114,10 @@ async def get_commit_info(commit_id: str):
             date:当前commit提交的日期
             message:当前commit提交时附加的信息
             parrent_commit_hash:当前commit的父commit的hash id
+            diffs:当前commit相比于父commit的改变的列表,列表中每一个元素都是一个文件改变的信息,具体来说包含了以下信息
+                diff_file:在本次commit中被修改的文件名
+                diff_change_type:本次commit中,该文件被修改的类型,例如新增,修改,删除
+                diff_change_content:本次commit中,该文件被修改的具体内容,其中'+'表示新增,'-'表示删除,与.diff文件解析方式类似
     """
     try:
         repo.git.checkout(commit_id)
@@ -125,14 +129,32 @@ async def get_commit_info(commit_id: str):
             "author": commit.author.name,
             "author_email": commit.author.email,
             "date": commit.authored_datetime,
-            "message": commit.message,
-            "parrent_commit_hash": []
+            "message": commit.message.strip(),
+            "parrent_commit_hash": [],
+            "diffs": []
         }
 
         # 获取该commit的父commit信息
         for parent in commit.parents:
             resp['parrent_commit_hash'].append(parent.hexsha)
         
+        # 获取该commit与父commit的差异
+        if len(commit.parents) > 0:
+            parent = commit.parents[0]
+            diffs = parent.diff(commit, create_patch=True)
+        else:
+            # 初始commit没有父节点
+            diffs = commit.diff(git.NULL_TREE, create_patch=True)
+        
+        # 展示每个修改的文件和diff
+        for diff in diffs:
+            diff_tmp = {}
+            diff_tmp["diff_file"] = diff.a_path if diff.a_path else diff.b_path
+            diff_tmp["diff_change_type"] = diff.change_type
+            if hasattr(diff, 'diff'):
+                diff_tmp["diff_change_content"] = diff.diff.decode('utf-8') if isinstance(diff.diff, bytes) else diff.diff
+            resp["diffs"].append(diff_tmp)
+
         return build_success_resp(data=resp, message=f"查询Linux内核源码id为{commit_id}的commit成功")
     except Exception as e:
         return build_fail_resp(message=f"查询Linux内核源码id为{commit_id}的commit失败,失败原因:{e}")
@@ -174,7 +196,7 @@ def execute_tree_command(path: str, recursive=False):
     执行系统tree命令并返回输出
     
     参数:
-        path (str): 要显示树结构的目录路径，默认为当前目录
+        path (str): 要显示树结构的目录路径,默认为当前目录
         
     返回:
         str: tree命令的输出结果
@@ -206,9 +228,9 @@ async def list_dir(version: str, path: str, detail = False, recursive=False) -> 
         recursive (bool) : 是否递归地展示待查询目录的内容,如果是True,那么函数就会递归地返回该目录所有的子文件和子目录。如果是False,那么函数就只会返回该目录下的子文件和子目录,不会再进行递归查找
 
     Returns:
-        如果detail == False，则返回一个由tree命令生成的字符串来展示目录结构
+        如果detail == False,则返回一个由tree命令生成的字符串来展示目录结构
 
-        如果detail == True，则返回一个json字符串,其中包含了以下字段:
+        如果detail == True,则返回一个json字符串,其中包含了以下字段:
             name : 待查找的项目的名称
             type : 待查找的项目的类型
                     directory -> 目录
@@ -264,7 +286,7 @@ async def list_dir(version: str, path: str, detail = False, recursive=False) -> 
             return build_success_resp(data=info, message=f"展示目录{path}内容成功")
 
     except FileNotFoundError:
-        return build_fail_resp(message=f"展示目录{path}内容失败,失败原因: 系统未安装tree命令，请先安装tree工具")
+        return build_fail_resp(message=f"展示目录{path}内容失败,失败原因: 系统未安装tree命令,请先安装tree工具")
     
     except Exception as e:
         return build_fail_resp(message=f"展示目录{path}内容失败,失败原因:{e}")
@@ -278,7 +300,7 @@ async def get_file_meta_info(version: str, path: str):
         path (str) : 要查看的Linux内核源码中某个文件的路径,这个路径是相对于内核源码根目录的路径,例如 /drivers/gpu/drm/amd/amdgpu/aldebaran_reg_init.c
 
     Returns:
-        返回该文件的元数据，包含以下信息:
+        返回该文件的元数据,包含以下信息:
             name : 文件的名称
             type : 文件的类型
                     directory -> 目录
@@ -394,9 +416,46 @@ async def check_if_directory_exist(version: str, path: str):
     except Exception as e:
         return build_fail_resp(message=f"查询目录{path}失败,失败原因:{e}")
 
+@mcp.tool()
+async def check_if_commit_exist(commit_id: str):
+    """查看Linux内核源码中指定commit是否存在
+    
+    Args:
+        commit_id (str) : 要查看的Linux内核源码的commit id,可以是一个具体的版本号,如v4.10,也可以是一个commit的hash id
+
+    Returns:
+        返回该commit是否存在的信息
+    """
+    message = f"id为{commit_id}的commit存在"
+    result = True
+    try:
+        repo.git.checkout(commit_id)
+    except Exception as e:
+        message = f"id为{commit_id}的commit不存在"
+        result = False
+    return build_success_resp(data=result, message=message)
+
+@mcp.tool()
+async def check_if_version_exist(version: str):
+    """查看Linux内核源码中指定版本是否存在
+    
+    Args:
+        version (str) : 要查看的Linux内核源码的指定版本,可以是一个具体的版本号,如v4.10
+
+    Returns:
+        返回该版本是否存在的信息
+    """
+    message = f"Linux内核源码版本{version}存在"
+    result = True
+    try:
+        repo.git.checkout(version)
+    except Exception as e:
+        message = f"Linux内核源码版本{version}不存在"
+        result = False
+    return build_success_resp(data=result, message=message)
+
 def main():
     mcp.run(transport="stdio")
-
 
 if __name__ == "__main__":
     main()
