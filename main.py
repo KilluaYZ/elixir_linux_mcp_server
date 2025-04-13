@@ -314,9 +314,85 @@ async def get_file_meta_info(version: str, path: str):
         return build_fail_resp(message=f"获取文件{path}元信息失败,失败原因:{e}")
 
 @mcp.tool()
-async def get_file_content():
-    pass 
+async def get_file_content(version: str, path: str):
+    """获取Linux内核源码中指定文件的内容
+    
+    Args:
+        version (str) : 要查看的Linux内核版本,可以是一个具体的版本号,如v4.10,也可以是一个commit的hash id
+        path (str) : 要查看的Linux内核源码文件的路径,这个路径是相对于内核源码根目录的路径,例如 /drivers/gpu/drm/amd/amdgpu/aldebaran_reg_init.c
 
+    Returns:
+        返回该文件的内容
+    """
+    try:
+        repo.git.checkout(version)
+        abs_path = Path(f"{REPO_DIR}/{path}")
+        if not abs_path.exists():
+            raise RuntimeError(f"文件{abs_path}不存在")
+
+        if not abs_path.is_file():
+            raise RuntimeError(f"{abs_path}不是一个文件")
+        
+        info = abs_path.read_text()
+
+        return build_success_resp(data=info, message=f"获取文件{path}内容成功")
+
+    except Exception as e:
+        return build_fail_resp(message=f"获取文件{path}内容失败,失败原因:{e}")
+
+@mcp.tool()
+async def check_if_file_exist(version: str, path: str):
+    """查看Linux内核源码中指定文件是否存在
+    
+    Args:
+        version (str) : 要查看的Linux内核版本,可以是一个具体的版本号,如v4.10,也可以是一个commit的hash id
+        path (str) : 要查看的Linux内核源码文件的路径,这个路径是相对于内核源码根目录的路径,例如 /drivers/gpu/drm/amd/amdgpu/aldebaran_reg_init.c
+
+    Returns:
+        返回该文件是否存在的信息
+    """
+    try:
+        repo.git.checkout(version)
+        abs_path = Path(f"{REPO_DIR}/{path}")
+        message = ""
+        result = False
+        if not abs_path.is_file():
+            message = f"文件{path}不存在"
+        else:
+            result = True
+            message = f"文件{path}存在" 
+        
+        return build_success_resp(data=result, message=message)
+
+    except Exception as e:
+        return build_fail_resp(message=f"查询文件{path}失败,失败原因:{e}")
+
+@mcp.tool()
+async def check_if_directory_exist(version: str, path: str):
+    """查看Linux内核源码中指定目录是否存在
+    
+    Args:
+        version (str) : 要查看的Linux内核版本,可以是一个具体的版本号,如v4.10,也可以是一个commit的hash id
+        path (str) : 要查看的Linux内核源码目录的路径,这个路径是相对于内核源码根目录的路径,例如 /drivers/gpu/drm/amd/amdgpu/
+
+    Returns:
+        返回该目录是否存在的信息
+    """
+    try:
+        repo.git.checkout(version)
+        abs_path = Path(f"{REPO_DIR}/{path}")
+        message = ""
+        result = False
+        if not abs_path.is_dir():
+            message = f"目录{path}不存在"
+        else:
+            result = True
+            message = f"目录{path}存在" 
+        
+        return build_success_resp(data=result, message=message)
+
+    except Exception as e:
+        return build_fail_resp(message=f"查询目录{path}失败,失败原因:{e}")
 
 def main():
     mcp.run(transport="stdio")
