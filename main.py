@@ -283,7 +283,7 @@ async def list_dir(version: str, path: str, detail = False, recursive=False) -> 
 
         else:
             info = execute_tree_command(path=str(abs_path.resolve()),recursive=recursive)
-            return build_success_resp(data=info, message=f"展示目录{path}内容成功")
+            return f"{path}的目录结构如下：\n{info}"
 
     except FileNotFoundError:
         return build_fail_resp(message=f"展示目录{path}内容失败,失败原因: 系统未安装tree命令,请先安装tree工具")
@@ -336,7 +336,7 @@ async def get_file_meta_info(version: str, path: str):
         return build_fail_resp(message=f"获取文件{path}元信息失败,失败原因:{e}")
 
 @mcp.tool()
-async def get_file_content(version: str, path: str):
+async def get_file_content(version: str, path: str) -> str:
     """获取Linux内核源码中指定文件的内容
     
     Args:
@@ -357,7 +357,8 @@ async def get_file_content(version: str, path: str):
         
         info = abs_path.read_text()
 
-        return build_success_resp(data=info, message=f"获取文件{path}内容成功")
+        # return build_success_resp(data=info, message=f"获取文件{path}内容成功")
+        return f"文件{path}的内容如下：{info}"
 
     except Exception as e:
         return build_fail_resp(message=f"获取文件{path}内容失败,失败原因:{e}")
